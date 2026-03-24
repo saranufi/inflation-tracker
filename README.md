@@ -1,14 +1,14 @@
 # Inflation Tracker
 
-Skeleton Python project for tracking the prices of predefined products over time.
+Python project for tracking a fixed catalog of products over time.
 
 ## What this scaffold includes
 
 - A small CLI for loading a product catalog and collecting price snapshots
-- A standard-library-only runtime
+- Direct retailer-page scraping from predefined product URLs
+- Optional OpenAI web search mode for the current discovery workflow
 - JSONL storage for historical price records
 - Docker and Docker Compose support
-- A provider interface so real scrapers or APIs can be added later
 
 ## Project layout
 
@@ -22,17 +22,17 @@ Skeleton Python project for tracking the prices of predefined products over time
 │   ├── app.py
 │   ├── config.py
 │   ├── models.py
-│   ├── providers/
-│   │   ├── base.py
-│   │   └── manual.py
+│   ├── openai_price_checker.py
+│   ├── scraper_price_checker.py
 │   └── storage.py
 └── tests/
 ```
 
 ## Product catalog
 
-The default catalog is metadata-only. It defines which products to track without storing prices in the JSON file.
-Later you can add providers for retailer APIs, HTML scraping, or browser automation.
+Each product can define up to 3 fixed retailer product URLs. Scraper mode reads those URLs directly.
+If you still want the previous discovery flow, use `--method openai`.
+`retailer_urls` accepts either objects with `retailer_name` and `url`, or plain URL strings where the retailer name is inferred from the domain.
 
 Example product entry:
 
@@ -44,8 +44,37 @@ Example product entry:
     {
       "id": "almarai-fresh-milk-1l",
       "name": "Almarai Fresh Milk 1L",
-      "category": "dairy"
+      "category": "dairy",
+      "retailer_urls": [
+        {
+          "retailer_name": "Retailer A",
+          "url": "https://example.com/product-page"
+        },
+        {
+          "retailer_name": "Retailer B",
+          "url": "https://example.com/product-page"
+        },
+        {
+          "retailer_name": "Retailer C",
+          "url": "https://example.com/product-page"
+        }
+      ]
     }
+  ]
+}
+```
+
+Shorthand is also valid:
+
+```json
+{
+  "id": "almarai-fresh-milk-1l",
+  "name": "Almarai Fresh Milk 1L",
+  "category": "dairy",
+  "retailer_urls": [
+    "https://gcc.luluhypermarket.com/en-kw/almarai-fresh-milk-full-fat-1-litre/p/7549",
+    "https://kuwait.grandhyper.com/Almarai-Fresh-Milk-Full-Fat-1Ltr",
+    "https://www.talabat.com/kuwait/talabat-mart/product/almarai-fresh-milk/s/example"
   ]
 }
 ```
@@ -57,12 +86,15 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -e .
 python -m inflation_tracker list-products --config config/products.json
+python -m inflation_tracker check-prices --config config/products.json --method scrape
+python -m inflation_tracker collect --config config/products.json --method scrape
 python -m unittest discover -s tests
 ```
 
-`collect` still works for products that have a configured `source`, but the default catalog intentionally omits pricing data and provider configuration.
+Scraper mode requires each product to have at least one configured `retailer_urls` entry.
+The default catalog ships with empty arrays so you can fill in the URLs gradually.
 
-To use OpenAI for price checks, put your key in `config/openai.json`:
+To retain the current OpenAI web-search workflow, put your key in `config/openai.json`:
 
 ```json
 {
@@ -81,8 +113,15 @@ To use OpenAI for price checks, put your key in `config/openai.json`:
 Then run:
 
 ```bash
-python -m inflation_tracker check-prices --config config/products.json
+python -m inflation_tracker check-prices --config config/products.json --method openai
+python -m inflation_tracker collect --config config/products.json --method openai
 ```
+
+When `--method openai` is used, the app also writes a products.json-compatible file at
+`data/openai_discovered_products.json` by default. Override that path with `--catalog-output`.
+The generated file contains the successful `retailer_urls` found by OpenAI and excludes
+`carrefourkuwait.com` results. The OpenAI flow accepts 1 to 3 quotes per product and
+keeps only quotes priced in `KWD`; other currencies are ignored.
 
 If you do not want to commit secrets, create `config/openai.local.json` instead. The code prefers that file over `config/openai.json`, and it is ignored by git.
 
@@ -104,6 +143,6 @@ docker compose up --build
 
 ## Next steps
 
-- Add real providers under `src/inflation_tracker/providers/`
+- Populate `retailer_urls` with the three fixed URLs you want to track per product
 - Replace JSONL storage with SQLite or Postgres if you need querying
 - Schedule regular collections with cron, GitHub Actions, or a job runner

@@ -19,6 +19,26 @@ def add_shared_arguments(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def add_price_method_argument(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--method",
+        choices=("scrape", "openai"),
+        default="scrape",
+        help="Price discovery method: scrape configured retailer URLs or use OpenAI web search.",
+    )
+
+
+def add_catalog_output_argument(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--catalog-output",
+        default="data/openai_discovered_products.json",
+        help=(
+            "When --method openai is used, write a products.json-compatible catalog "
+            "with the successful retailer URLs to this path."
+        ),
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     shared = argparse.ArgumentParser(add_help=False)
     add_shared_arguments(shared)
@@ -34,16 +54,21 @@ def build_parser() -> argparse.ArgumentParser:
         help="Print configured products.",
         parents=[shared],
     )
-    subparsers.add_parser(
+    collect_parser = subparsers.add_parser(
         "collect",
         help="Collect price snapshots and persist them.",
         parents=[shared],
     )
-    subparsers.add_parser(
+    add_price_method_argument(collect_parser)
+    add_catalog_output_argument(collect_parser)
+
+    check_prices_parser = subparsers.add_parser(
         "check-prices",
-        help="Use OpenAI web search to fetch 3 prices and an average for each product.",
+        help="Fetch product prices and print quotes with an average.",
         parents=[shared],
     )
+    add_price_method_argument(check_prices_parser)
+    add_catalog_output_argument(check_prices_parser)
     return parser
 
 
@@ -58,42 +83,59 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "list-products":
         for product in app.list_products():
-            source_type = product.source.type if product.source else "-"
             print(
                 f"{product.id}\t{product.name}\t{product.category}\t"
-                f"{product.currency}\t{source_type}"
+                f"{product.currency}\t{len(product.retailer_urls)}"
             )
         return 0
 
     if args.command == "collect":
         try:
-            snapshots = app.collect()
-        except ValueError as exc:
+            snapshots = app.collect(method=args.method)
+        except Exception as exc:
             parser.exit(1, f"Error: {exc}\n")
+
+        exported_catalog_path = None
+        if args.method == "openai":
+            exported_catalog_path = app.write_discovered_catalog_from_snapshots(
+                snapshots=snapshots,
+                output_path=str(Path(args.catalog_output)),
+            )
+
         print(f"Collected {len(snapshots)} price snapshot(s).")
         for snapshot in snapshots:
             print(
                 f"{snapshot.product_id}\t{snapshot.price}\t"
-                f"{snapshot.currency}\t{snapshot.captured_at.isoformat()}"
+                f"{snapshot.currency}\t{snapshot.collection_method}\t"
+                f"{snapshot.quote_count}\t{snapshot.captured_at.isoformat()}"
+            )
+        if exported_catalog_path is not None:
+            print(
+                f"Wrote OpenAI-discovered catalog to {exported_catalog_path.as_posix()}."
             )
         return 0
 
     if args.command == "check-prices":
         try:
             products = app.list_products()
-            checker = app.build_openai_price_checker()
-        except RuntimeError as exc:
+            checker = app.build_price_checker(args.method)
+        except (RuntimeError, ValueError) as exc:
             parser.exit(1, f"Error: {exc}\n")
 
         print(
-            f"Checking {len(products)} product(s). Results will print as they return.\n",
+            f"Checking {len(products)} product(s) with '{args.method}'. Results will print as they return.\n",
             flush=True,
         )
 
         success_count = 0
         error_count = 0
+        successful_reports = []
 
-        for outcome in app.iter_price_checks(products=products, checker=checker):
+        for outcome in app.iter_price_checks(
+            method=args.method,
+            products=products,
+            checker=checker,
+        ):
             print(outcome.product.name, flush=True)
 
             if outcome.error is not None:
@@ -110,6 +152,7 @@ def main(argv: list[str] | None = None) -> int:
                 continue
 
             success_count += 1
+            successful_reports.append(report)
             for quote in report.quotes:
                 print(
                     f"  {quote.store_name}: {quote.price} {quote.currency} | "
@@ -121,6 +164,16 @@ def main(argv: list[str] | None = None) -> int:
                 flush=True,
             )
             print(flush=True)
+
+        if args.method == "openai":
+            exported_catalog_path = app.write_discovered_catalog_from_reports(
+                reports=successful_reports,
+                output_path=str(Path(args.catalog_output)),
+            )
+            print(
+                f"Wrote OpenAI-discovered catalog to {exported_catalog_path.as_posix()}.\n",
+                flush=True,
+            )
 
         print(
             f"Completed {len(products)} product(s): {success_count} succeeded, {error_count} failed.",

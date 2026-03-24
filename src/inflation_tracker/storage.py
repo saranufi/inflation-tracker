@@ -37,6 +37,15 @@ class SnapshotStorage:
         payload = asdict(snapshot)
         payload["price"] = str(snapshot.price)
         payload["captured_at"] = SnapshotStorage._format_datetime(snapshot.captured_at)
+        payload["quotes"] = [
+            {
+                "store_name": quote.store_name,
+                "product_url": quote.product_url,
+                "price": str(quote.price),
+                "currency": quote.currency,
+            }
+            for quote in snapshot.quotes
+        ]
         return payload
 
     @staticmethod

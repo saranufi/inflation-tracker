@@ -6,6 +6,12 @@ from decimal import Decimal, ROUND_HALF_UP
 
 
 @dataclass(slots=True, frozen=True)
+class RetailerProductUrl:
+    retailer_name: str
+    url: str
+
+
+@dataclass(slots=True, frozen=True)
 class ProductSource:
     type: str
     price: Decimal | None = None
@@ -18,6 +24,7 @@ class Product:
     name: str
     category: str
     currency: str
+    retailer_urls: tuple[RetailerProductUrl, ...] = ()
     source: ProductSource | None = None
 
 
@@ -29,24 +36,28 @@ class PriceSnapshot:
     currency: str
     price: Decimal
     captured_at: datetime
-    source_type: str | None
+    collection_method: str
+    quote_count: int
+    quotes: tuple["SourcePrice", ...]
 
     @classmethod
     def create(
         cls,
         *,
-        product: Product,
-        price: Decimal,
+        report: "ProductPriceReport",
+        collection_method: str,
         captured_at: datetime | None = None,
     ) -> "PriceSnapshot":
         return cls(
-            product_id=product.id,
-            product_name=product.name,
-            category=product.category,
-            currency=product.currency,
-            price=price,
+            product_id=report.product.id,
+            product_name=report.product.name,
+            category=report.product.category,
+            currency=report.product.currency,
+            price=report.average_price,
             captured_at=captured_at or datetime.now(tz=timezone.utc),
-            source_type=product.source.type if product.source else None,
+            collection_method=collection_method,
+            quote_count=len(report.quotes),
+            quotes=report.quotes,
         )
 
 
@@ -65,6 +76,8 @@ class ProductPriceReport:
 
     @property
     def average_price(self) -> Decimal:
+        if not self.quotes:
+            raise ValueError(f"No quotes were collected for '{self.product.name}'.")
         total = sum((quote.price for quote in self.quotes), start=Decimal("0"))
         average = total / Decimal(len(self.quotes))
         return average.quantize(Decimal("0.001"), rounding=ROUND_HALF_UP)
