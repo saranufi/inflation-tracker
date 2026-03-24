@@ -1,0 +1,11 @@
+{
+  "api_key": "",
+  "model": "gpt-5-mini",
+  "reasoning_effort": "low",
+  "location": {
+    "country": "KW",
+    "city": "Kuwait City",
+    "region": "Al Asimah",
+    "timezone": "Asia/Kuwait"
+  }
+}

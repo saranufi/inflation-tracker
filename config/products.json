@@ -1,0 +1,111 @@
+{
+  "market": "Kuwait",
+  "currency": "KWD",
+  "products": [
+    {
+      "id": "almarai-fresh-milk-1l",
+      "name": "Almarai Fresh Milk 1L",
+      "category": "dairy"
+    },
+    {
+      "id": "almarai-natural-honey-500g",
+      "name": "Almarai Natural Honey 500g",
+      "category": "pantry"
+    },
+    {
+      "id": "almarai-unsalted-butter-400g",
+      "name": "Almarai Unsalted Butter 400g",
+      "category": "dairy"
+    },
+    {
+      "id": "alrawda-cornflakes",
+      "name": "AlRawda Cornflakes",
+      "category": "breakfast"
+    },
+    {
+      "id": "al-rawdeten-eggs-30pcs",
+      "name": "Al Rawdeten Eggs 30pcs",
+      "category": "eggs"
+    },
+    {
+      "id": "americana-strawberries-400g",
+      "name": "Americana Strawberries 400g",
+      "category": "frozen"
+    },
+    {
+      "id": "apple-red-usa-1kg",
+      "name": "Apple Red USA 1 kg",
+      "category": "produce"
+    },
+    {
+      "id": "consul-olive-oil-500ml",
+      "name": "Consul Olive Oil 500ml",
+      "category": "pantry"
+    },
+    {
+      "id": "fresh-seabass-1kg",
+      "name": "Fresh Seabass 1kg",
+      "category": "seafood"
+    },
+    {
+      "id": "fresh-shrimp-medium-500g",
+      "name": "Fresh Shrimp Medium 500g",
+      "category": "seafood"
+    },
+    {
+      "id": "indian-mutton-leg-1kg",
+      "name": "Indian Mutton Leg 1kg",
+      "category": "meat"
+    },
+    {
+      "id": "kdd-vanilla-ice-cream-1l",
+      "name": "KDD Vanilla Ice Cream 1L",
+      "category": "frozen"
+    },
+    {
+      "id": "kelloggs-corn-flakes-original-750g",
+      "name": "Kellogg's Corn Flakes Original 750g",
+      "category": "breakfast"
+    },
+    {
+      "id": "kraft-cheddar-spread-480g",
+      "name": "Kraft Cheddar Spread 480g",
+      "category": "dairy"
+    },
+    {
+      "id": "majdi-dry-lemon-whole-200g",
+      "name": "Majdi Dry Lemon Whole 200g",
+      "category": "pantry"
+    },
+    {
+      "id": "mcvities-digestive-biscuits-250g",
+      "name": "McVities Digestive Biscuits 250g",
+      "category": "snacks"
+    },
+    {
+      "id": "mutaheda-fresh-whole-chicken-1kg",
+      "name": "Mutaheda Fresh Whole Chicken 1kg",
+      "category": "poultry"
+    },
+    {
+      "id": "sadia-green-peas-900g",
+      "name": "Sadia Green Peas 900g",
+      "category": "frozen"
+    },
+    {
+      "id": "sultan-fine-sugar-5kg",
+      "name": "Sultan Fine Sugar 5kg",
+      "category": "pantry"
+    },
+    {
+      "id": "tomato-kuwait-1kg",
+      "name": "Tomato Kuwait 1 kg",
+      "category": "produce"
+    },
+    {
+      "id": "turkey-dried-fig-500g",
+      "name": "Turkey Dried Fig 500g",
+      "category": "pantry"
+    }
+  ]
+}

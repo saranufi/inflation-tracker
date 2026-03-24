@@ -1,0 +1,11 @@
+version: "3.9"
+
+services:
+  tracker:
+    build:
+      context: .
+    image: inflation-tracker:latest
+    volumes:
+      - ./config:/app/config
+      - ./data:/app/data
+    command: ["python", "-m", "inflation_tracker", "list-products", "--config", "/app/config/products.json", "--data-dir", "/app/data"]
