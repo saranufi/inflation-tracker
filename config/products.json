@@ -6,8 +6,8 @@
       "name": "Almarai Fresh Milk 1L",
       "category": "dairy",
       "retailer_urls": [
-        "https://www.talabat.com/kuwait/talabat-mart/product/almarai-fresh-full-fat-milk-1l/s/901091",
-        "https://gcc.luluhypermarket.com/en-kw/almarai-fresh-milk-full-fat-1-litre/p/7549"
+        "https://gcc.luluhypermarket.com/en-kw/almarai-fresh-milk-full-fat-1-litre/p/7549/",
+        "https://www.talabat.com/kuwait/talabat-mart/product/almarai-fresh-full-fat-milk-1l/s/901091"
       ]
     },
     {
@@ -15,8 +15,7 @@
       "name": "Almarai Natural Honey 500g",
       "category": "pantry",
       "retailer_urls": [
-        "https://www.talabat.com/kuwait/talabat-mart/product/almarai-polyflora-honey-500g/s/ds056120",
-        "https://ananinja.com/kw/en/product/almarai-polyflora-honey-500-gm-19343254"
+        "https://gcc.luluhypermarket.com/en-kw/almarai-natural-honey-500-g/p/1809787/"
       ]
     },
     {
@@ -24,17 +23,7 @@
       "name": "Almarai Unsalted Butter 400g",
       "category": "dairy",
       "retailer_urls": [
-        "https://gcc.luluhypermarket.com/en-kw/almarai-unsalted-natural-butter-400-g/p/1007808/",
-        "https://kuwait.grandhyper.com/Almarai-Natural-Butter-Unsalted-400gm"
-      ]
-    },
-    {
-      "id": "kelloggs-corn-flakes-original-750g",
-      "name": "Kellogg's Corn Flakes Original 750g",
-      "category": "breakfast",
-      "retailer_urls": [
-        "https://www.noon.com/kuwait-en/maxi-corn-flakes-cereal-original-750grams/N25262372A/p/",
-        "https://ziraiyakw.com/product/kelloggs-original-corn-flakes-cereal-750g/"
+        "https://gcc.luluhypermarket.com/en-kw/almarai-unsalted-natural-butter-400-g/p/1007808/"
       ]
     },
     {
@@ -42,7 +31,7 @@
       "name": "Al Rawdeten Eggs 30pcs",
       "category": "eggs",
       "retailer_urls": [
-        "https://gcc.luluhypermarket.com/ar-kw/al-rawdeten-white-eggs-large-30pcs/p/1698705/",
+        "https://gcc.luluhypermarket.com/en-kw/al-rawdeten-brown-eggs-medium-30-pcs/p/2038158/",
         "https://www.taw9eel.com/en/al-rawdeten-fresh-60-70-white-eggs-30-pcs.html"
       ]
     },
@@ -61,8 +50,7 @@
       "category": "produce",
       "retailer_urls": [
         "https://gcc.luluhypermarket.com/en-kw/apple-red-usa-1-kg/p/19047-ea/",
-        "https://www.talabat.com/kuwait/talabat-mart/product/red-apple-usa-1kg/s/902411",
-        "https://ananinja.com/kw/ar/product/apple-red-from-usa-1-kg-19337393"
+        "https://www.talabat.com/kuwait/talabat-mart/product/red-apple-usa-1kg/s/902411"
       ]
     },
     {
@@ -79,7 +67,8 @@
       "name": "Fresh Seabass 1kg",
       "category": "seafood",
       "retailer_urls": [
-        "https://gcc.luluhypermarket.com/en-kw/p/461177-ea/"
+        "https://gcc.luluhypermarket.com/en-kw/fresh-arabian-seabass-whole-cleaned-1-kg/p/1292328-ea/",
+        "https://kuwait.grandhyper.com/Fresh-Sea-Bass-Fish-Turkey-1Kg-Approx"
       ]
     },
     {
@@ -87,8 +76,7 @@
       "name": "Fresh Shrimp Medium 500g",
       "category": "seafood",
       "retailer_urls": [
-        "https://stgakn.lulumea.com/en-kw/fresh-shrimp-medium-500-g/p/101165-ea/",
-        "https://ananinja.com/kw/en/product/danah-shrimp-tiger-peeled-tail-medium-frozen-500-gm-19351265"
+        "https://gcc.luluhypermarket.com/en-kw/p/101165-ea/"
       ]
     },
     {
@@ -104,8 +92,8 @@
       "name": "KDD Vanilla Ice Cream 1L",
       "category": "frozen",
       "retailer_urls": [
-        "https://ananinja.com/kw/en/product/kdd-vanilla-soft-ice-cream-1-l-19358047",
-        "https://gcc.luluhypermarket.com/en-kw/kdd-vanilla-almond-ice-cream-1-litre/p/424060/"
+        "https://gcc.luluhypermarket.com/en-kw/kdd-vanilla-ice-cream-1-litre/p/424071/",
+        "https://ziraiyakw.com/product/kdd-vanilla-chocolate-ice-cream-1l/"
       ]
     },
     {
@@ -113,8 +101,7 @@
       "name": "Kellogg's Corn Flakes Original 750g",
       "category": "breakfast",
       "retailer_urls": [
-        "https://www.noon.com/kuwait-en/maxi-corn-flakes-cereal-original-750grams/N25262372A/p/",
-        "https://ziraiyakw.com/product/kelloggs-original-corn-flakes-cereal-750g/"
+        "https://al-hudaydah.com/products/kelloggs-corn-flakes-750g"
       ]
     },
     {
@@ -124,7 +111,7 @@
       "retailer_urls": [
         "https://gcc.luluhypermarket.com/en-kw/kraft-cheddar-cheese-spread-480-g/p/1408777/",
         "https://www.talabat.com/kuwait/talabat-mart/product/kraft-cheddar-cheese-spread-jar-480g/s/ds090222",
-        "https://kuwait.grandhyper.com/Kraft-Cheddar-Cheese-Spread-Original-2-x-480gm"
+        "https://ebaqala.com/en/kuwait-indian-grocery/groceries/27520/kraft_gold_jar_chedder_cheese_spread_480gm.html"
       ]
     },
     {
@@ -132,8 +119,8 @@
       "name": "Majdi Dry Lemon Whole 200g",
       "category": "pantry",
       "retailer_urls": [
-        "https://www.talabat.com/kuwait/talabat-mart/product/majdi-dry-lemon-whole-200-g/s/911232",
-        "https://gcc.luluhypermarket.com/en-kw/majdi-dry-lemon-whole-200-g/p/307007"
+        "https://gcc.luluhypermarket.com/en-kw/majdi-dry-lemon-whole-200-g/p/307007",
+        "https://www.talabat.com/kuwait/talabat-mart-hawally/product/majdi-dry-lemon-whole-200-g/s/911232"
       ]
     },
     {
@@ -142,7 +129,8 @@
       "category": "snacks",
       "retailer_urls": [
         "https://gcc.luluhypermarket.com/en-kw/mcvities-digestive-biscuits-250-g/p/1203/",
-        "https://sinbadshop.com/mcvities-digestives-original-wheat-biscuits-250g/"
+        "https://sinbadshop.com/mcvities-digestives-original-wheat-biscuits-250g/",
+        "https://kuwait.grandhyper.com/Mcvities-Digestive-Biscuit-Original-250gm"
       ]
     },
     {
@@ -159,8 +147,7 @@
       "name": "Sadia Green Peas 900g",
       "category": "frozen",
       "retailer_urls": [
-        "https://gcc.luluhypermarket.com/en-kw/sadia-garden-peas-900-g/p/1792730/",
-        "https://www.taw9eel.com/en/sadia-frozen-green-peas-900-g-1.html"
+        "https://gcc.luluhypermarket.com/en-kw/sadia-garden-peas-900-g/p/1792730/"
       ]
     },
     {
@@ -168,9 +155,7 @@
       "name": "AlWazzan Fine Sugar 5kg",
       "category": "pantry",
       "retailer_urls": [
-        "https://www.talabat.com/kuwait/talabat-mart/product/al-wazzan-sugar-5kg/s/908815",
-        "https://gcc.luluhypermarket.com/ar-kw/al-wazzan-premium-quality-sugar-5-kg/p/439239/",
-        "https://www.taw9eel.com/groceries-delicious-food-2/special-promotions/al-wazzan-premium-quality-sugar-5-kg.html"
+        "https://www.talabat.com/kuwait/talabat-mart/product/al-wazzan-sugar-5kg/s/908815"
       ]
     },
     {
@@ -178,8 +163,8 @@
       "name": "Tomato Kuwait 1 kg",
       "category": "produce",
       "retailer_urls": [
-        "https://www.talabat.com/kuwait/talabat-mart/product/tomato-kuwaiti-1kg/s/902449",
-        "https://ananinja.com/kw/en/brand/KW-VEGETABLES-FRUITS"
+        "https://www.talabat.com/kuwait/talabat-mart/fruit-veg/vegetables",
+        "https://drops.me/en-kw/c/FL5654"
       ]
     },
     {
@@ -189,7 +174,7 @@
       "retailer_urls": [
         "https://gcc.luluhypermarket.com/en-kw/p/334456-ea/",
         "https://souqhelal.com/en/products/dried-figs-turkey-bdgida-500g",
-        "https://www.talabat.com/kuwait/talabat-mart/product/turkish-dried-figs-size-6-500-g/s/910908"
+        "https://store.foodvera.com.kw/products/turkish-dried-figs-500g"
       ]
     }
   ],

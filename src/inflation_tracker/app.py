@@ -8,6 +8,10 @@ from inflation_tracker.config import load_products
 from inflation_tracker.models import PriceSnapshot, Product
 from inflation_tracker.models import ProductPriceCheckOutcome, ProductPriceReport
 from inflation_tracker.openai_price_checker import OpenAIPriceChecker
+from inflation_tracker.page_price_analyzers import (
+    LocalLLMPagePriceAnalyzer,
+    OpenAIPagePriceAnalyzer,
+)
 from inflation_tracker.scraper_price_checker import RetailerScraperPriceChecker
 from inflation_tracker.storage import SnapshotStorage
 
@@ -26,14 +30,22 @@ class InflationTrackerApp:
     def build_scraper_price_checker(self) -> RetailerScraperPriceChecker:
         return RetailerScraperPriceChecker()
 
+    def build_scrape_openai_price_checker(self) -> RetailerScraperPriceChecker:
+        return RetailerScraperPriceChecker(analyzer=OpenAIPagePriceAnalyzer())
+
+    def build_scrape_local_llm_price_checker(self) -> RetailerScraperPriceChecker:
+        return RetailerScraperPriceChecker(analyzer=LocalLLMPagePriceAnalyzer())
+
     def build_price_checker(self, method: str) -> OpenAIPriceChecker | RetailerScraperPriceChecker:
-        if method == "scrape":
-            return self.build_scraper_price_checker()
         if method == "openai":
             return self.build_openai_price_checker()
+        if method in {"scrape", "scrape-openai"}:
+            return self.build_scrape_openai_price_checker()
+        if method == "scrape-local-llm":
+            return self.build_scrape_local_llm_price_checker()
         raise ValueError(f"Unsupported price discovery method '{method}'.")
 
-    def check_prices(self, *, method: str = "scrape") -> list[ProductPriceReport]:
+    def check_prices(self, *, method: str = "scrape-openai") -> list[ProductPriceReport]:
         return [
             outcome.report
             for outcome in self.iter_price_checks(method=method)
@@ -43,7 +55,7 @@ class InflationTrackerApp:
     def iter_price_checks(
         self,
         *,
-        method: str = "scrape",
+        method: str = "scrape-openai",
         products: Iterable[Product] | None = None,
         checker: OpenAIPriceChecker | RetailerScraperPriceChecker | None = None,
     ) -> Iterator[ProductPriceCheckOutcome]:
@@ -59,7 +71,7 @@ class InflationTrackerApp:
             except Exception as exc:
                 yield ProductPriceCheckOutcome(product=product, error=str(exc))
 
-    def collect(self, *, method: str = "scrape") -> list[PriceSnapshot]:
+    def collect(self, *, method: str = "scrape-openai") -> list[PriceSnapshot]:
         products = load_products(self.config_path)
         storage = SnapshotStorage(self.data_dir)
         checker = self.build_price_checker(method)

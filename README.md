@@ -6,7 +6,7 @@ Python project for tracking a fixed catalog of products over time.
 
 - A small CLI for loading a product catalog and collecting price snapshots
 - Direct retailer-page scraping from predefined product URLs
-- Optional OpenAI web search mode for the current discovery workflow
+- Three price-discovery modes: OpenAI search, scrape+OpenAI analysis, and scrape+local-LLM analysis
 - JSONL storage for historical price records
 - Docker and Docker Compose support
 
@@ -23,6 +23,7 @@ Python project for tracking a fixed catalog of products over time.
 │   ├── config.py
 │   ├── models.py
 │   ├── openai_price_checker.py
+│   ├── page_price_analyzers.py
 │   ├── scraper_price_checker.py
 │   └── storage.py
 └── tests/
@@ -30,8 +31,12 @@ Python project for tracking a fixed catalog of products over time.
 
 ## Product catalog
 
-Each product can define up to 3 fixed retailer product URLs. Scraper mode reads those URLs directly.
-If you still want the previous discovery flow, use `--method openai`.
+Each product can define up to 3 fixed retailer product URLs.
+The CLI supports three methods:
+- `openai`: OpenAI searches the web and can write discovered `retailer_urls` back out to a file.
+- `scrape-openai`: the app fetches the configured retailer pages and OpenAI extracts the price from the page content.
+- `scrape-local-llm`: the app fetches the configured retailer pages and your local Ollama model extracts the price from the page content.
+
 `retailer_urls` accepts either objects with `retailer_name` and `url`, or plain URL strings where the retailer name is inferred from the domain.
 
 Example product entry:
@@ -86,15 +91,15 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -e .
 python -m inflation_tracker list-products --config config/products.json
-python -m inflation_tracker check-prices --config config/products.json --method scrape
-python -m inflation_tracker collect --config config/products.json --method scrape
+python -m inflation_tracker check-prices --config config/products.json --method scrape-openai
+python -m inflation_tracker collect --config config/products.json --method scrape-openai
 python -m unittest discover -s tests
 ```
 
-Scraper mode requires each product to have at least one configured `retailer_urls` entry.
+Both scrape-based modes require each product to have at least one configured `retailer_urls` entry.
 The default catalog ships with empty arrays so you can fill in the URLs gradually.
 
-To retain the current OpenAI web-search workflow, put your key in `config/openai.json`:
+To use either OpenAI-based mode, put your key in `config/openai.json`:
 
 ```json
 {
@@ -115,6 +120,8 @@ Then run:
 ```bash
 python -m inflation_tracker check-prices --config config/products.json --method openai
 python -m inflation_tracker collect --config config/products.json --method openai
+python -m inflation_tracker check-prices --config config/products.json --method scrape-openai
+python -m inflation_tracker collect --config config/products.json --method scrape-openai
 ```
 
 When `--method openai` is used, the app also writes a products.json-compatible file at
@@ -124,6 +131,24 @@ The generated file contains the successful `retailer_urls` found by OpenAI and e
 keeps only quotes priced in `KWD`; other currencies are ignored.
 
 If you do not want to commit secrets, create `config/openai.local.json` instead. The code prefers that file over `config/openai.json`, and it is ignored by git.
+
+To use your local Ollama model for page analysis, edit `config/local_llm.json`:
+
+```json
+{
+  "base_url": "http://localhost:11434",
+  "model": "gpt-oss:20b",
+  "temperature": 0.1,
+  "num_ctx": 16384
+}
+```
+
+Then run:
+
+```bash
+python -m inflation_tracker check-prices --config config/products.json --method scrape-local-llm
+python -m inflation_tracker collect --config config/products.json --method scrape-local-llm
+```
 
 ## Run with Docker
 

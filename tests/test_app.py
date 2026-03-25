@@ -1,18 +1,34 @@
 from __future__ import annotations
 
+import io
 import json
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from decimal import Decimal
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from inflation_tracker.app import InflationTrackerApp
-from inflation_tracker.cli import build_parser
+from inflation_tracker.cli import build_parser, main
 from inflation_tracker.config import load_products
-from inflation_tracker.models import ProductPriceReport, RetailerProductUrl, SourcePrice
+from inflation_tracker.models import (
+    PriceAttempt,
+    Product,
+    ProductPriceCheckOutcome,
+    ProductPriceReport,
+    RetailerProductUrl,
+    SourcePrice,
+)
 from inflation_tracker.openai_price_checker import OpenAIPriceChecker
-from inflation_tracker.scraper_price_checker import RetailerScraperPriceChecker
+from inflation_tracker.page_price_analyzers import (
+    _CONFIGURED_URL_TRUST_GUIDANCE,
+    LocalLLMPagePriceAnalyzer,
+    OpenAIPagePriceAnalyzer,
+    _RELAXED_MATCHING_GUIDANCE,
+)
+from inflation_tracker.scraper_price_checker import ExtractedPrice, RetailerScraperPriceChecker
 
 
 class InflationTrackerAppTests(unittest.TestCase):
@@ -317,12 +333,12 @@ class InflationTrackerAppTests(unittest.TestCase):
                 "--config",
                 "config/products.json",
                 "--method",
-                "scrape",
+                "scrape-local-llm",
             ]
         )
 
         self.assertEqual(args.command, "check-prices")
-        self.assertEqual(args.method, "scrape")
+        self.assertEqual(args.method, "scrape-local-llm")
 
     def test_openai_settings_load_local_override(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -695,6 +711,310 @@ class InflationTrackerAppTests(unittest.TestCase):
         self.assertEqual(report.quotes[0].price, Decimal("1.250"))
         self.assertEqual(report.average_price, Decimal("1.250"))
 
+    def test_scraper_price_checker_continues_after_no_match_attempt(self) -> None:
+        product = Product(
+            id="sugar-5kg",
+            name="AlWazzan Fine Sugar 5kg",
+            category="pantry",
+            currency="KWD",
+            retailer_urls=(
+                RetailerProductUrl(
+                    retailer_name="Talabat",
+                    url="https://www.talabat.com/kuwait/talabat-mart/product/al-wazzan-sugar-5kg/s/908815",
+                ),
+                RetailerProductUrl(
+                    retailer_name="Lulu Hypermarket",
+                    url="https://gcc.luluhypermarket.com/ar-kw/al-wazzan-premium-quality-sugar-5-kg/p/439239/",
+                ),
+            ),
+        )
+        checker = RetailerScraperPriceChecker(
+            fetcher=StaticHtmlFetcher("<html></html>"),
+            analyzer=FirstRetailerNoMatchAnalyzer(),
+        )
+
+        report = checker.check_product(product)
+
+        self.assertEqual(len(report.attempts), 2)
+        self.assertEqual(report.attempts[0].store_name, "Talabat")
+        self.assertEqual(
+            report.attempts[0].error,
+            "The page does not match 'AlWazzan Fine Sugar 5kg'.",
+        )
+        self.assertEqual(report.attempts[1].store_name, "Lulu Hypermarket")
+        self.assertEqual(report.attempts[1].price, Decimal("1.350"))
+        self.assertEqual(len(report.quotes), 1)
+        self.assertEqual(report.average_price, Decimal("1.350"))
+
+    def test_openai_page_price_analyzer_extracts_price_from_page(self) -> None:
+        product = load_products(Path("config/products.json"))[0]
+        retailer = RetailerProductUrl(
+            retailer_name="Store A",
+            url="https://example.test/product",
+        )
+        fake_response = SimpleNamespace(
+            output_text=json.dumps(
+                {
+                    "matched_product": True,
+                    "price": 0.470,
+                    "currency": "KWD",
+                }
+            )
+        )
+        fake_client = SimpleNamespace(
+            responses=SimpleNamespace(create=lambda **_: fake_response)
+        )
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            settings_path = Path(tmp_dir) / "openai.json"
+            settings_path.write_text(
+                json.dumps(
+                    {
+                        "api_key": "test-key",
+                        "model": "gpt-5-mini",
+                        "reasoning_effort": "low",
+                        "location": {
+                            "country": "KW",
+                            "city": "Kuwait City",
+                            "region": "Al Asimah",
+                            "timezone": "Asia/Kuwait",
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            analyzer = OpenAIPagePriceAnalyzer(
+                client=fake_client,
+                settings_path=settings_path,
+            )
+            extracted = analyzer.analyze(
+                product=product,
+                retailer=retailer,
+                html="<html><body>KWD 0.470</body></html>",
+            )
+
+            self.assertEqual(extracted.amount, Decimal("0.47"))
+            self.assertEqual(extracted.currency, "KWD")
+
+    def test_openai_page_price_analyzer_uses_price_even_when_match_flag_is_false(self) -> None:
+        product = load_products(Path("config/products.json"))[0]
+        retailer = RetailerProductUrl(
+            retailer_name="Store A",
+            url="https://example.test/product",
+        )
+        fake_response = SimpleNamespace(
+            output_text=json.dumps(
+                {
+                    "matched_product": False,
+                    "price": 0.470,
+                    "currency": "KWD",
+                }
+            )
+        )
+        fake_client = SimpleNamespace(
+            responses=SimpleNamespace(create=lambda **_: fake_response)
+        )
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            settings_path = Path(tmp_dir) / "openai.json"
+            settings_path.write_text(
+                json.dumps(
+                    {
+                        "api_key": "test-key",
+                        "model": "gpt-5-mini",
+                        "reasoning_effort": "low",
+                        "location": {
+                            "country": "KW",
+                            "city": "Kuwait City",
+                            "region": "Al Asimah",
+                            "timezone": "Asia/Kuwait",
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            analyzer = OpenAIPagePriceAnalyzer(
+                client=fake_client,
+                settings_path=settings_path,
+            )
+            extracted = analyzer.analyze(
+                product=product,
+                retailer=retailer,
+                html="<html><body>KWD 0.470</body></html>",
+            )
+
+            self.assertEqual(extracted.amount, Decimal("0.47"))
+            self.assertEqual(extracted.currency, "KWD")
+
+    def test_openai_page_price_analyzer_uses_relaxed_matching_guidance(self) -> None:
+        product = load_products(Path("config/products.json"))[0]
+        retailer = RetailerProductUrl(
+            retailer_name="Store A",
+            url="https://example.test/product",
+        )
+        captured_request: dict[str, object] = {}
+
+        def create_response(**kwargs):  # type: ignore[no-untyped-def]
+            captured_request.update(kwargs)
+            return SimpleNamespace(
+                output_text=json.dumps(
+                    {
+                        "matched_product": True,
+                        "price": 0.470,
+                        "currency": "KWD",
+                    }
+                )
+            )
+
+        fake_client = SimpleNamespace(
+            responses=SimpleNamespace(create=create_response)
+        )
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            settings_path = Path(tmp_dir) / "openai.json"
+            settings_path.write_text(
+                json.dumps(
+                    {
+                        "api_key": "test-key",
+                        "model": "gpt-5-mini",
+                        "reasoning_effort": "low",
+                        "location": {
+                            "country": "KW",
+                            "city": "Kuwait City",
+                            "region": "Al Asimah",
+                            "timezone": "Asia/Kuwait",
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            analyzer = OpenAIPagePriceAnalyzer(
+                client=fake_client,
+                settings_path=settings_path,
+            )
+            analyzer.analyze(
+                product=product,
+                retailer=retailer,
+                html="<html><body>KWD 0.470</body></html>",
+            )
+
+        messages = captured_request["input"]
+        self.assertIn(_RELAXED_MATCHING_GUIDANCE, messages[0]["content"])
+        self.assertIn(_CONFIGURED_URL_TRUST_GUIDANCE, messages[0]["content"])
+
+    def test_local_llm_page_price_analyzer_extracts_price_from_page(self) -> None:
+        product = load_products(Path("config/products.json"))[0]
+        retailer = RetailerProductUrl(
+            retailer_name="Store A",
+            url="https://example.test/product",
+        )
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            settings_path = Path(tmp_dir) / "local_llm.json"
+            settings_path.write_text(
+                json.dumps(
+                    {
+                        "base_url": "http://localhost:11434",
+                        "model": "gpt-oss:20b",
+                        "temperature": 0.1,
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            analyzer = LocalLLMPagePriceAnalyzer(settings_path=settings_path)
+            fake_payload = {
+                "message": {
+                    "content": json.dumps(
+                        {
+                            "matched_product": True,
+                            "price": 0.480,
+                            "currency": "KWD",
+                        }
+                    )
+                }
+            }
+
+            with patch("inflation_tracker.page_price_analyzers.urlopen") as mock_urlopen:
+                mock_urlopen.return_value.__enter__.return_value.read.return_value = (
+                    json.dumps(fake_payload).encode("utf-8")
+                )
+
+                extracted = analyzer.analyze(
+                    product=product,
+                    retailer=retailer,
+                    html="<html><body>KWD 0.480</body></html>",
+                )
+
+            self.assertEqual(extracted.amount, Decimal("0.48"))
+            self.assertEqual(extracted.currency, "KWD")
+
+    def test_local_llm_page_price_analyzer_uses_relaxed_matching_guidance(self) -> None:
+        product = load_products(Path("config/products.json"))[0]
+        retailer = RetailerProductUrl(
+            retailer_name="Store A",
+            url="https://example.test/product",
+        )
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            settings_path = Path(tmp_dir) / "local_llm.json"
+            settings_path.write_text(
+                json.dumps(
+                    {
+                        "base_url": "http://localhost:11434",
+                        "model": "gpt-oss:20b",
+                        "temperature": 0.1,
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            analyzer = LocalLLMPagePriceAnalyzer(settings_path=settings_path)
+            captured_request: dict[str, object] = {}
+            fake_payload = {
+                "message": {
+                    "content": json.dumps(
+                        {
+                            "matched_product": True,
+                            "price": 0.480,
+                            "currency": "KWD",
+                        }
+                    )
+                }
+            }
+
+            def fake_urlopen(request, timeout=60):  # type: ignore[no-untyped-def]
+                captured_request["body"] = request.data.decode("utf-8")
+
+                class _Response:
+                    def __enter__(self):  # type: ignore[no-untyped-def]
+                        return self
+
+                    def __exit__(self, exc_type, exc, tb):  # type: ignore[no-untyped-def]
+                        return False
+
+                    def read(self):  # type: ignore[no-untyped-def]
+                        return json.dumps(fake_payload).encode("utf-8")
+
+                return _Response()
+
+            with patch("inflation_tracker.page_price_analyzers.urlopen", fake_urlopen):
+                analyzer.analyze(
+                    product=product,
+                    retailer=retailer,
+                    html="<html><body>KWD 0.480</body></html>",
+                )
+
+        request_payload = json.loads(captured_request["body"])
+        self.assertIn(_RELAXED_MATCHING_GUIDANCE, request_payload["messages"][0]["content"])
+        self.assertIn(
+            _CONFIGURED_URL_TRUST_GUIDANCE,
+            request_payload["messages"][0]["content"],
+        )
+
     def test_iter_price_checks_continues_after_error(self) -> None:
         products = load_products(Path("config/products.json"))[:2]
 
@@ -706,6 +1026,71 @@ class InflationTrackerAppTests(unittest.TestCase):
         self.assertIsNone(outcomes[0].error)
         self.assertIsNone(outcomes[1].report)
         self.assertEqual(outcomes[1].error, "temporary failure")
+
+    def test_check_prices_cli_prints_no_match_attempts_with_urls(self) -> None:
+        product = Product(
+            id="sugar-5kg",
+            name="AlWazzan Fine Sugar 5kg",
+            category="pantry",
+            currency="KWD",
+            retailer_urls=(),
+        )
+        report = ProductPriceReport(
+            product=product,
+            quotes=(
+                SourcePrice(
+                    store_name="Lulu Hypermarket",
+                    product_url="https://gcc.luluhypermarket.com/ar-kw/al-wazzan-premium-quality-sugar-5-kg/p/439239/",
+                    price=Decimal("1.350"),
+                    currency="KWD",
+                ),
+            ),
+            attempts=(
+                PriceAttempt(
+                    store_name="Talabat",
+                    product_url="https://www.talabat.com/kuwait/talabat-mart/product/al-wazzan-sugar-5kg/s/908815",
+                    error="The page does not match 'AlWazzan Fine Sugar 5kg'.",
+                ),
+                PriceAttempt(
+                    store_name="Lulu Hypermarket",
+                    product_url="https://gcc.luluhypermarket.com/ar-kw/al-wazzan-premium-quality-sugar-5-kg/p/439239/",
+                    price=Decimal("1.350"),
+                    currency="KWD",
+                ),
+            ),
+        )
+
+        class FakeApp:
+            def __init__(self, config_path: str, data_dir: str) -> None:
+                self.config_path = config_path
+                self.data_dir = data_dir
+
+            def list_products(self) -> list[Product]:
+                return [product]
+
+            def build_price_checker(self, method: str) -> object:
+                return object()
+
+            def iter_price_checks(self, **kwargs):  # type: ignore[no-untyped-def]
+                yield ProductPriceCheckOutcome(product=product, report=report)
+
+        stdout = io.StringIO()
+        with patch("inflation_tracker.cli.InflationTrackerApp", FakeApp):
+            with redirect_stdout(stdout):
+                exit_code = main(["check-prices", "--method", "scrape-local-llm"])
+
+        self.assertEqual(exit_code, 0)
+        output = stdout.getvalue()
+        self.assertIn("AlWazzan Fine Sugar 5kg", output)
+        self.assertIn(
+            "  Talabat: No Match | https://www.talabat.com/kuwait/talabat-mart/product/al-wazzan-sugar-5kg/s/908815",
+            output,
+        )
+        self.assertIn(
+            "  Lulu Hypermarket: 1.350 KWD | https://gcc.luluhypermarket.com/ar-kw/al-wazzan-premium-quality-sugar-5-kg/p/439239/",
+            output,
+        )
+        self.assertIn("  Average: 1.350 KWD", output)
 
 
 class DummyChecker:
@@ -741,6 +1126,13 @@ class StaticHtmlFetcher:
 
     def fetch(self, url: str) -> str:
         return self.html
+
+
+class FirstRetailerNoMatchAnalyzer:
+    def analyze(self, *, product, retailer, html):  # type: ignore[no-untyped-def]
+        if retailer.retailer_name == "Talabat":
+            raise ValueError(f"The page does not match '{product.name}'.")
+        return ExtractedPrice(amount=Decimal("1.350"), currency="KWD")
 
 
 if __name__ == "__main__":

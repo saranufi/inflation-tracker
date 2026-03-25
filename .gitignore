@@ -11,3 +11,4 @@ data/*.json
 data/*.jsonl
 !data/.gitkeep
 config/openai.local.json
+docs/~$CPI Using AI Groupings of Categories - Cleansed.xlsx

@@ -10,7 +10,13 @@ from typing import Protocol
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from inflation_tracker.models import Product, ProductPriceReport, RetailerProductUrl, SourcePrice
+from inflation_tracker.models import (
+    PriceAttempt,
+    Product,
+    ProductPriceReport,
+    RetailerProductUrl,
+    SourcePrice,
+)
 
 
 _META_PRICE_KEYS = (
@@ -32,6 +38,17 @@ _CURRENCY_ALIASES = {
 
 class HtmlFetcher(Protocol):
     def fetch(self, url: str) -> str:
+        raise NotImplementedError
+
+
+class PagePriceAnalyzer(Protocol):
+    def analyze(
+        self,
+        *,
+        product: Product,
+        retailer: RetailerProductUrl,
+        html: str,
+    ) -> ExtractedPrice:
         raise NotImplementedError
 
 
@@ -68,8 +85,14 @@ class UrlLibHtmlFetcher:
 
 
 class RetailerScraperPriceChecker:
-    def __init__(self, *, fetcher: HtmlFetcher | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        fetcher: HtmlFetcher | None = None,
+        analyzer: PagePriceAnalyzer | None = None,
+    ) -> None:
         self.fetcher = fetcher or UrlLibHtmlFetcher()
+        self.analyzer = analyzer
 
     def check_products(self, products: list[Product]) -> list[ProductPriceReport]:
         return [self.check_product(product) for product in products]
@@ -81,11 +104,37 @@ class RetailerScraperPriceChecker:
                 "Add 1 to 3 'retailer_urls' entries to use scraper mode."
             )
 
-        quotes = tuple(
-            self._scrape_retailer_price(product=product, retailer=retailer)
-            for retailer in product.retailer_urls
+        quotes: list[SourcePrice] = []
+        attempts: list[PriceAttempt] = []
+
+        for retailer in product.retailer_urls:
+            try:
+                quote = self._scrape_retailer_price(product=product, retailer=retailer)
+            except Exception as exc:
+                attempts.append(
+                    PriceAttempt(
+                        store_name=retailer.retailer_name,
+                        product_url=retailer.url,
+                        error=str(exc),
+                    )
+                )
+                continue
+
+            quotes.append(quote)
+            attempts.append(
+                PriceAttempt(
+                    store_name=quote.store_name,
+                    product_url=quote.product_url,
+                    price=quote.price,
+                    currency=quote.currency,
+                )
+            )
+
+        return ProductPriceReport(
+            product=product,
+            quotes=tuple(quotes),
+            attempts=tuple(attempts),
         )
-        return ProductPriceReport(product=product, quotes=quotes)
 
     def _scrape_retailer_price(
         self,
@@ -94,10 +143,17 @@ class RetailerScraperPriceChecker:
         retailer: RetailerProductUrl,
     ) -> SourcePrice:
         html = self.fetcher.fetch(retailer.url)
-        extracted = self._extract_price_from_html(
-            html=html,
-            expected_currency=product.currency,
-        )
+        if self.analyzer is None:
+            extracted = self._extract_price_from_html(
+                html=html,
+                expected_currency=product.currency,
+            )
+        else:
+            extracted = self.analyzer.analyze(
+                product=product,
+                retailer=retailer,
+                html=html,
+            )
         return SourcePrice(
             store_name=retailer.retailer_name,
             product_url=retailer.url,

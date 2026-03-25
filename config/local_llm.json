@@ -1,0 +1,6 @@
+{
+  "base_url": "http://localhost:11434",
+  "model": "gpt-oss:20b",
+  "temperature": 0.1,
+  "num_ctx": 16384
+}

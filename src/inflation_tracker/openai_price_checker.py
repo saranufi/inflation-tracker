@@ -10,7 +10,7 @@ from inflation_tracker.models import Product, ProductPriceReport, SourcePrice
 
 
 class OpenAIPriceChecker:
-    BLOCKED_DOMAINS = frozenset({"carrefourkuwait.com"})
+    BLOCKED_DOMAINS = frozenset({"carrefourkuwait.com", "ananinja.com", "supermarket.kanbkam.com", "kanbkam.com"})
 
     def __init__(
         self,

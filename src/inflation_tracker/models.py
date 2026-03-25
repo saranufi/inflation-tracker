@@ -70,9 +70,37 @@ class SourcePrice:
 
 
 @dataclass(slots=True, frozen=True)
+class PriceAttempt:
+    store_name: str
+    product_url: str
+    price: Decimal | None = None
+    currency: str | None = None
+    error: str | None = None
+
+    @property
+    def succeeded(self) -> bool:
+        return self.error is None and self.price is not None
+
+
+@dataclass(slots=True, frozen=True)
 class ProductPriceReport:
     product: Product
     quotes: tuple[SourcePrice, ...]
+    attempts: tuple[PriceAttempt, ...] = ()
+
+    @property
+    def display_attempts(self) -> tuple[PriceAttempt, ...]:
+        if self.attempts:
+            return self.attempts
+        return tuple(
+            PriceAttempt(
+                store_name=quote.store_name,
+                product_url=quote.product_url,
+                price=quote.price,
+                currency=quote.currency,
+            )
+            for quote in self.quotes
+        )
 
     @property
     def average_price(self) -> Decimal:

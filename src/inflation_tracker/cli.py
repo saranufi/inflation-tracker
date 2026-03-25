@@ -4,6 +4,7 @@ import argparse
 from pathlib import Path
 
 from inflation_tracker.app import InflationTrackerApp
+from inflation_tracker.models import PriceAttempt
 
 
 def add_shared_arguments(parser: argparse.ArgumentParser) -> None:
@@ -22,9 +23,12 @@ def add_shared_arguments(parser: argparse.ArgumentParser) -> None:
 def add_price_method_argument(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--method",
-        choices=("scrape", "openai"),
-        default="scrape",
-        help="Price discovery method: scrape configured retailer URLs or use OpenAI web search.",
+        choices=("scrape-openai", "scrape-local-llm", "openai"),
+        default="scrape-openai",
+        help=(
+            "Price discovery method: OpenAI web search, scrape pages and let OpenAI "
+            "analyze them, or scrape pages and let a local LLM analyze them."
+        ),
     )
 
 
@@ -34,9 +38,31 @@ def add_catalog_output_argument(parser: argparse.ArgumentParser) -> None:
         default="data/openai_discovered_products.json",
         help=(
             "When --method openai is used, write a products.json-compatible catalog "
-            "with the successful retailer URLs to this path."
+            "with the successful discovered retailer URLs to this path."
         ),
     )
+
+
+def is_no_match_attempt(attempt: PriceAttempt) -> bool:
+    if attempt.error is None:
+        return False
+    normalized_error = attempt.error.lower()
+    return (
+        "does not match" in normalized_error
+        or "no price was identified" in normalized_error
+    )
+
+
+def format_attempt_line(attempt: PriceAttempt) -> str:
+    if attempt.succeeded and attempt.price is not None and attempt.currency is not None:
+        status = f"{attempt.price} {attempt.currency}"
+    elif is_no_match_attempt(attempt):
+        status = "No Match"
+    elif attempt.error is not None:
+        status = f"Error: {attempt.error}"
+    else:
+        status = "No Match"
+    return f"  {attempt.store_name}: {status} | {attempt.product_url}"
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -111,7 +137,7 @@ def main(argv: list[str] | None = None) -> int:
             )
         if exported_catalog_path is not None:
             print(
-                f"Wrote OpenAI-discovered catalog to {exported_catalog_path.as_posix()}."
+                f"Wrote discovered catalog to {exported_catalog_path.as_posix()}."
             )
         return 0
 
@@ -151,18 +177,20 @@ def main(argv: list[str] | None = None) -> int:
                 print(flush=True)
                 continue
 
-            success_count += 1
-            successful_reports.append(report)
-            for quote in report.quotes:
+            if report.quotes:
+                success_count += 1
+                successful_reports.append(report)
+            else:
+                error_count += 1
+
+            for attempt in report.display_attempts:
+                print(format_attempt_line(attempt), flush=True)
+
+            if report.quotes:
                 print(
-                    f"  {quote.store_name}: {quote.price} {quote.currency} | "
-                    f"{quote.product_url}",
+                    f"  Average: {report.average_price} {report.product.currency}",
                     flush=True,
                 )
-            print(
-                f"  Average: {report.average_price} {report.product.currency}",
-                flush=True,
-            )
             print(flush=True)
 
         if args.method == "openai":
@@ -171,7 +199,7 @@ def main(argv: list[str] | None = None) -> int:
                 output_path=str(Path(args.catalog_output)),
             )
             print(
-                f"Wrote OpenAI-discovered catalog to {exported_catalog_path.as_posix()}.\n",
+                f"Wrote discovered catalog to {exported_catalog_path.as_posix()}.\n",
                 flush=True,
             )
 
